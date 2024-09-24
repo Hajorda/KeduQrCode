@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,9 +15,8 @@ class _HomePageState extends State<HomePage> {
   String aliNumber = "00004904";
   String qrData = "";
 
-  @override
   void initState() {
-    // TODO: implement initState
+    //getKey();
     super.initState();
     qrData =
         "$aliNumber,${DateFormat('yyyy-MM-dd').format(DateTime.now())} 23:59:00";
@@ -66,8 +67,26 @@ class _HomePageState extends State<HomePage> {
                               Navigator.pop(context);
                             },
                             child: GestureDetector(child: Text("Select Image"),
-                            onTap: () {
+                            onTap: () async{
+                              debugPrint("Select Image");
                               // Open Image Picker
+                              final ImagePicker _picker = ImagePicker();
+                               final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+                                if (image != null) {
+                                  debugPrint("Image Selected");
+                                  // Read Image
+                                  // Read Qr Code
+                                  // Set Qr Code
+                                }
+                                else{
+                                  debugPrint("Image Not Selected");
+                                  // Snack Bar message
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Image Not Selected"),
+                                    ),
+                                  );
+                                }
                             },
                             ),
                           ),
@@ -128,7 +147,7 @@ class _HomePageState extends State<HomePage> {
                   errorStateBuilder: (context, error) => const Text("Hata"),
                   errorCorrectionLevel: QrErrorCorrectLevel.L,
                   constrainErrorBounds: true,
-                  embeddedImage: const AssetImage("lib/assets/images/image.png"),
+                  //embeddedImage: const AssetImage("lib/assets/images/image.png"),
                   // embeddedImageStyle: const QrEmbeddedImageStyle(
                   //   color: Colors.blue,
                     // size: 500,
