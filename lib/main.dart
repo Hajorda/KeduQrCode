@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tedu_qrcode/HomePage.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,6 +11,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+   SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(

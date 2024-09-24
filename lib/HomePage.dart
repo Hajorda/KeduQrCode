@@ -25,21 +25,21 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: const Text("Tedu Qr Code"),
+          title: const Text("KEDU Qr Code"),
         ),
         drawer: Drawer(
           child: ListView(
             children: [
               const DrawerHeader(
                 decoration: BoxDecoration(
-                  color: Color.fromARGB(255, 224, 227, 229),
+                  //color: Color.fromARGB(255, 224, 227, 229),
                 ),
                 child: Column(
                   children: [
                     CircleAvatar(
                       radius: 50,
                       backgroundImage: AssetImage("lib/assets/images/image.png"),
-                      backgroundColor: Color.fromARGB(255, 224, 227, 229),
+                      backgroundColor: Colors.transparent,
                     ),
                   ],
                 ),
@@ -49,7 +49,32 @@ class _HomePageState extends State<HomePage> {
                 // Scan Icon
                 leading: const Icon(Icons.qr_code_scanner),
                 onTap: () {
-                  Navigator.pop(context);
+                  // Show dialog for scan qr code
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text("Scan Qr Code"),
+                        content: const Text(
+                            "You need a screenshot of the qr, take a screenshot and upload it!"),
+                        actions: [
+                          TextButton(onPressed: () {
+                            Navigator.pop(context);
+                          }, child: const Text("Cancel")),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: GestureDetector(child: Text("Select Image"),
+                            onTap: () {
+                              // Open Image Picker
+                            },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
                 },
               ),
               ListTile(
@@ -57,8 +82,37 @@ class _HomePageState extends State<HomePage> {
                 // Info Icon
                 leading: const Icon(Icons.info),
                 onTap: () {
-                  Navigator.pop(context);
+                  // Show Dialog
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text("Info"),
+                        content: const Text(
+                            "This is a simple Qr Code Generator App for Kedu Edu. First Scan your qr code from your real application and after that you can use this app while entering gate."),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text("OK"),
+                          ),
+                        ],
+                      );
+                    },
+                  );
                 },
+              ),
+              // Switch for dark mode
+              SwitchListTile(
+                title: const Text("Dark Mode"),
+                value: false,
+                onChanged: (value) {},
+              ),
+              SwitchListTile(
+                title: const Text("Auto Set Wallpaper"),
+                value: false,
+                onChanged: (value) {},
               ),
             ],
           ),
@@ -69,6 +123,7 @@ class _HomePageState extends State<HomePage> {
               Padding(
                 padding: const EdgeInsets.all(30.0),
                 child: QrImageView(
+
                   version: QrVersions.auto,
                   errorStateBuilder: (context, error) => const Text("Hata"),
                   errorCorrectionLevel: QrErrorCorrectLevel.L,
@@ -76,7 +131,7 @@ class _HomePageState extends State<HomePage> {
                   embeddedImage: const AssetImage("lib/assets/images/image.png"),
                   // embeddedImageStyle: const QrEmbeddedImageStyle(
                   //   color: Colors.blue,
-                  //   size: Size(50, 50),
+                    // size: 500,
                   // ),
                   data: qrData,
                 ),
