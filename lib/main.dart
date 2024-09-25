@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
   String? key = prefs.getString("key");
   if(key == null){
     debugPrint("Key Not Found");
-    // show a dialog screen
+    // show a dialog screen ?
     showDialog(
       context: context,
       barrierDismissible: false,
