@@ -37,6 +37,7 @@ class _HomePageState extends State<HomePage> {
       color: Colors.white,
     ).toImageData(878);
 
+
     final buffer = qrImage?.buffer;
     if(buffer == null) {
       debugPrint("Buffer is null");
@@ -53,6 +54,7 @@ class _HomePageState extends State<HomePage> {
      File assetPath = await File(filePath).writeAsBytes(
         buffer.asUint8List(qrImage.offsetInBytes, qrImage.lengthInBytes));
         return assetPath;
+
 
    // const wallpaperLocation = WallpaperLocation.lockScreen;
 // With crop bounds
