@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:scan/scan.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tedu_qrcode/HomePage.dart';
 import 'package:flutter/services.dart';
 
