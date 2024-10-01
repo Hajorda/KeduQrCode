@@ -1,9 +1,17 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter_wallpaper_manager/flutter_wallpaper_manager.dart';
+import 'package:access_wallpaper/access_wallpaper.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:scan/scan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,10 +19,168 @@ class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
 }
+
 class _HomePageState extends State<HomePage> {
   String number = "";
   String qrData = "";
+  Uint8List wallpaperBytes = Uint8List(0);
+  bool engin = false;
 
+  bool isAutoWallpaperSet = false;
+
+  Future<File> generateQrForWallpaper() async {
+    if(qrData.isEmpty) {
+      debugPrint("Qr Data is empty");
+      return File("");
+    }
+    ByteData? qrImage = await QrPainter(
+  version: QrVersions.auto,
+  errorCorrectionLevel: QrErrorCorrectLevel.L,
+  data: qrData, // Display the QR code data
+  gapless: true,
+  emptyColor: const Color.fromARGB(255, 255, 255, 255), // Set QR code color to white
+  color: const Color.fromARGB(255, 0, 0, 0), // Background inside the QR code remains black
+).toImageData(878);
+
+
+    final buffer = qrImage?.buffer;
+    if(buffer == null) {
+      debugPrint("Buffer is null");
+      return File("");
+    }
+    if(qrImage == null) {
+      debugPrint("QrImage is null");
+      return File("");
+    }
+
+    Directory tempDir = await getTemporaryDirectory();
+    String tempPath = tempDir.path;
+    var filePath = tempPath + '/file_01.tmp'; // file_01.tmp is dump file, can be anything
+     File assetPath = await File(filePath).writeAsBytes(
+        buffer.asUint8List(qrImage.offsetInBytes, qrImage.lengthInBytes));
+        return assetPath;
+
+
+   // const wallpaperLocation = WallpaperLocation.lockScreen;
+// With crop bounds
+    // const cropBounds = Rect.fromLTRB(100, 100, 200, 100);
+    // bool result = await WallpaperHandler.instance.setWallpaperFromAsset(
+    //     assetPath.path, wallpaperLocation,
+    //     // cropBounds: cropBounds
+    //     );
+
+//     int location = WallpaperManager.BOTH_SCREEN; //can be Home/Lock Screen
+// bool result = await WallpaperManager.setWallpaperFromFile(assetPath.path, location); //provide image path
+
+  }
+
+  Future<Uint8List> getCurrentWallpaper() async {
+   var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      await Permission.storage.request();
+    }
+  var manageStatus = await Permission.manageExternalStorage.status;
+    if (!manageStatus.isGranted) {
+      await Permission.manageExternalStorage.request();
+    }
+
+  final AccessWallpaper accessWallpaper = AccessWallpaper();
+
+  Uint8List? wallpaperBytes = await accessWallpaper.getWallpaper(AccessWallpaper.homeScreenFlag);
+  if(wallpaperBytes == null){
+    debugPrint("Wallpaper is null");
+    return Uint8List(0);
+  }
+  return wallpaperBytes;
+  }
+
+Future<void> setWallpaper() async {
+  // Generate the QR code file
+  File qrFile = await generateQrForWallpaper();
+
+  // Get the current wallpaper
+  Uint8List wallpaperBytes = await getCurrentWallpaper();
+  if (wallpaperBytes.isEmpty) {
+    debugPrint("Wallpaper is empty");
+    return;
+  }
+
+  // Decode the current wallpaper into an img.Image
+  img.Image wallpaperImage = img.decodeImage(wallpaperBytes)!;
+
+  // Read and decode the QR code image from the file
+  Uint8List qrBytes = qrFile.readAsBytesSync();
+  img.Image qrImage = img.decodeImage(qrBytes)!;
+
+  // Resize the QR code to be smaller (e.g., 1/3 of the wallpaper width)
+  int qrWidth = (wallpaperImage.width / 3).round();
+  img.Image resizedQrImage = img.copyResize(qrImage, width: qrWidth);
+
+  // Calculate the size for the black background (5% larger than the QR code)
+  int backgroundWidth = (resizedQrImage.width * 1.05).round();
+  int backgroundHeight = (resizedQrImage.height * 1.05).round();
+
+  // Create a black background image
+  img.Image background = img.Image(width: backgroundWidth, height: backgroundHeight);
+  img.fill(background, color: img.ColorFloat64.rgb(0, 0, 0)); // Black background
+
+  // Optionally, you can add rounded corners to the black background
+  drawRoundedCorners(background, backgroundWidth ~/ 8);
+
+  // Composite the QR code onto the black background
+  int qrCenterX = (backgroundWidth - resizedQrImage.width) ~/ 2;
+  int qrCenterY = (backgroundHeight - resizedQrImage.height) ~/ 2;
+  img.compositeImage(background, resizedQrImage, dstX: qrCenterX, dstY: qrCenterY);
+
+  // Calculate the position to center the black background (with the QR code) on the wallpaper
+  int centerX = (wallpaperImage.width - backgroundWidth) ~/ 2;
+  int centerY = (wallpaperImage.height - backgroundHeight) ~/ 2;
+
+  // Composite the black background (with the QR code) onto the wallpaper
+  img.compositeImage(wallpaperImage, background, dstX: centerX, dstY: centerY);
+
+  // Save the modified wallpaper as a new file
+  File newWallpaperFile = File('${qrFile.parent.path}/new_wallpaper.png')
+    ..writeAsBytesSync(img.encodePng(wallpaperImage));
+
+  // Set the modified wallpaper as the lock screen or home screen wallpaper
+  int location = WallpaperManager.LOCK_SCREEN; // can be set to WallpaperManager.HOME_SCREEN or BOTH_SCREEN
+  bool result = await WallpaperManager.setWallpaperFromFile(newWallpaperFile.path, location);
+
+  // Debugging feedback
+  if (result) {
+    debugPrint("Wallpaper set successfully");
+  } else {
+    debugPrint("Failed to set wallpaper");
+  }
+}
+
+void drawRoundedCorners(img.Image image, int cornerRadius) {
+  int width = image.width;
+  int height = image.height;
+
+  // Set the corners to transparent
+  for (int y = 0; y < cornerRadius; y++) {
+    for (int x = 0; x < cornerRadius; x++) {
+      // Top-left corner
+      if ((x * x) + (y * y) > (cornerRadius * cornerRadius)) {
+        image.setPixel(x, y, img.ColorFloat64.rgb(255, 255, 255));
+      }
+      // Top-right corner
+      if ((x * x) + (y * y) > (cornerRadius * cornerRadius)) {
+        image.setPixel(width - x - 1, y, img.ColorFloat64.rgb(255, 255, 255));
+      }
+      // Bottom-left corner
+      if ((x * x) + (y * y) > (cornerRadius * cornerRadius)) {
+        image.setPixel(x, height - y - 1, img.ColorFloat64.rgb(255, 255, 255));
+      }
+      // Bottom-right corner
+      if ((x * x) + (y * y) > (cornerRadius * cornerRadius)) {
+        image.setPixel(width - x - 1, height - y - 1, img.ColorFloat64.rgb(255, 255, 255));
+      }
+    }
+  }
+}
   Future<void> getKey() async {
     // Get Keys from Shared Preferences
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -23,7 +189,8 @@ class _HomePageState extends State<HomePage> {
     if (key != null) {
       setState(() {
         number = key;
-        qrData = "$number,${DateFormat('yyyy-MM-dd').format(DateTime.now())} 23:59:00";
+        qrData =
+            "$number,${DateFormat('yyyy-MM-dd').format(DateTime.now())} 23:59:00";
       });
     } else {
       debugPrint("Key Not Found");
@@ -59,11 +226,13 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     getKey(); // Get the key when the widget is initialized
+    WakelockPlus.enable();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text("KEDU Qr Code"),
       ),
@@ -91,14 +260,16 @@ class _HomePageState extends State<HomePage> {
                   builder: (context) {
                     return AlertDialog(
                       title: const Text("Delete Key"),
-                      content: const Text("Are you sure you want to delete key?"),
+                      content:
+                          const Text("Are you sure you want to delete key?"),
                       actions: [
                         TextButton(
                           onPressed: () {
                             SharedPreferences.getInstance().then((prefs) {
                               prefs.remove("key");
                               setState(() {
-                                number = ""; // Clear the number when key is deleted
+                                number =
+                                    ""; // Clear the number when key is deleted
                                 qrData = ""; // Clear the QR code
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -189,29 +360,54 @@ class _HomePageState extends State<HomePage> {
             ),
             SwitchListTile(
               title: const Text("Auto Set Wallpaper"),
-              value: false,
-              onChanged: (value) {},
+              value: isAutoWallpaperSet,
+              onChanged: (value) {
+                // Auto Set Wallpaper
+                setState(() {
+                  isAutoWallpaperSet = value;
+                 setWallpaper();
+                });
+              },
             ),
           ],
         ),
       ),
-      body: Center(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(30.0),
-              child: QrImageView(
-                version: QrVersions.auto,
-                errorStateBuilder: (context, error) => const Text("Error"),
-                errorCorrectionLevel: QrErrorCorrectLevel.L,
-                constrainErrorBounds: true,
-                data: qrData, // Display the QR code data
+      body: Builder(builder: (context) {
+        if (number.isEmpty) {
+          return const Center(
+            child: Text("No Key Found"),
+          );
+        }
+        return Center(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(60.0),
+                child: QrImageView(
+                  version: QrVersions.auto,
+                  errorStateBuilder: (context, error) => const Text("Error"),
+                  errorCorrectionLevel: QrErrorCorrectLevel.L,
+                  constrainErrorBounds: true,
+                  data: qrData, // Display the QR code data
+                ),
               ),
-            ),
-            Text(qrData), // Display the QR code string
-          ],
-        ),
-      ),
+              Text(qrData), // Display the QR code string
+              // Image that shows wallapaper as image if engin is true
+              engin
+                  ? Image.memory(wallpaperBytes)
+                  : const SizedBox(),
+              ElevatedButton(onPressed: () async {
+                debugPrint("Button Pressed");
+                var bytes = await getCurrentWallpaper();
+                setState(() {
+                  wallpaperBytes = bytes;
+                  engin = true;
+                });
+              }, child: Text("Button"))
+            ],
+          ),
+        );
+      }),
     );
   }
 
@@ -233,7 +429,8 @@ class _HomePageState extends State<HomePage> {
           await prefs.setString("key", result.split(",")[0]);
           setState(() {
             number = result.split(",")[0];
-            qrData = "$number,${DateFormat('yyyy-MM-dd').format(DateTime.now())} 23:59:00";
+            qrData =
+                "$number,${DateFormat('yyyy-MM-dd').format(DateTime.now())} 23:59:00";
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -249,7 +446,6 @@ class _HomePageState extends State<HomePage> {
         }
         Navigator.pop(context);
       }
-      //?
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -259,3 +455,4 @@ class _HomePageState extends State<HomePage> {
     }
   }
 }
+// ????
