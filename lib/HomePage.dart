@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_wallpaper_manager/flutter_wallpaper_manager.dart';
+import 'package:access_wallpaper/access_wallpaper.dart';
+import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:scan/scan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,11 +23,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String number = "";
   String qrData = "";
+  Uint8List wallpaperBytes = Uint8List(0);
+  bool engin = false;
 
   bool isAutoWallpaperSet = false;
 
-  Future<File> setWalppaper() async {
-    if(qrData.isEmpty) {
+  Future<File> generateQrForWallpaper() async {
+    if (qrData.isEmpty) {
       debugPrint("Qr Data is empty");
       return File("");
     }
@@ -34,53 +38,140 @@ class _HomePageState extends State<HomePage> {
       errorCorrectionLevel: QrErrorCorrectLevel.L,
       data: qrData, // Display the QR code data
       gapless: true,
-      color: Colors.white,
+      emptyColor: const Color.fromARGB(
+          255, 255, 255, 255), // Set QR code color to white
+      //color: const Color.fromARGB(255, 0, 0, 0), // Background inside the QR code remains black
     ).toImageData(878);
 
-
     final buffer = qrImage?.buffer;
-    if(buffer == null) {
+    if (buffer == null) {
       debugPrint("Buffer is null");
       return File("");
     }
-    if(qrImage == null) {
+    if (qrImage == null) {
       debugPrint("QrImage is null");
       return File("");
     }
 
     Directory tempDir = await getTemporaryDirectory();
     String tempPath = tempDir.path;
-    var filePath = tempPath + '/file_01.tmp'; // file_01.tmp is dump file, can be anything
-     File assetPath = await File(filePath).writeAsBytes(
+    var filePath =
+        tempPath + '/file_01.tmp'; // file_01.tmp is dump file, can be anything
+    File assetPath = await File(filePath).writeAsBytes(
         buffer.asUint8List(qrImage.offsetInBytes, qrImage.lengthInBytes));
-        return assetPath;
-
-
-   // const wallpaperLocation = WallpaperLocation.lockScreen;
-// With crop bounds
-    // const cropBounds = Rect.fromLTRB(100, 100, 200, 100);
-    // bool result = await WallpaperHandler.instance.setWallpaperFromAsset(
-    //     assetPath.path, wallpaperLocation,
-    //     // cropBounds: cropBounds
-    //     );
-
-//     int location = WallpaperManager.BOTH_SCREEN; //can be Home/Lock Screen
-// bool result = await WallpaperManager.setWallpaperFromFile(assetPath.path, location); //provide image path
-
+    return assetPath;
   }
 
-  
-  Future<void> wallpaperSetter() async{
-    File file = await setWalppaper();
+  Future<Uint8List> getCurrentWallpaper() async {
+    var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      await Permission.storage.request();
+    }
+    var manageStatus = await Permission.manageExternalStorage.status;
+    if (!manageStatus.isGranted) {
+      await Permission.manageExternalStorage.request();
+    }
 
-    int location = WallpaperManager.LOCK_SCREEN; //can be Home/Lock Screen
-   bool result = await WallpaperManager.setWallpaperFromFile(file.path, location); //provide image path
+    final AccessWallpaper accessWallpaper = AccessWallpaper();
 
+    Uint8List? wallpaperBytes =
+        await accessWallpaper.getWallpaper(AccessWallpaper.homeScreenFlag);
+    if (wallpaperBytes == null) {
+      debugPrint("Wallpaper is null");
+      return Uint8List(0);
+    }
+    return wallpaperBytes;
+  }
 
+  Future<void> setOriginalWallapaper() async {
+    // Get wallapaper from shared preferences
+    SharedPreferences.getInstance().then((prefs) {
+      String? wallpaperPath = prefs.getString("wallpaper");
+      if (wallpaperPath != null) {
+        // Set the wallpaper
+        WallpaperManager.setWallpaperFromFile(
+            wallpaperPath, WallpaperManager.LOCK_SCREEN);
+      } else {
+        debugPrint("Original Wallpaper Path is null");
+      }
+    });
+  }
+
+  Future<void> setWallpaper() async {
+    // Generate the QR code file
+    File qrFile = await generateQrForWallpaper();
+
+    // Get the current wallpaper
+    Uint8List wallpaperBytes = await getCurrentWallpaper();
+    if (wallpaperBytes.isEmpty) {
+      debugPrint("Wallpaper is empty");
+      return;
+    }
+    // Check is there original wallpaper
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? wallpaperPath = prefs.getString("wallpaper");
+    if (wallpaperPath == null) {
+      // Save the current wallpaper as a file
+      File wallpaperFile = File('${qrFile.parent.path}/wallpaper.png')
+        ..writeAsBytesSync(wallpaperBytes);
+      // Save the file to sharedpreferces
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString("wallpaper", wallpaperFile.path);
+    }
+    
+    // Decode the current wallpaper into an img.Image
+    img.Image wallpaperImage = img.decodeImage(wallpaperBytes)!;
+
+    // Read and decode the QR code image from the file
+    Uint8List qrBytes = qrFile.readAsBytesSync();
+    img.Image qrImage = img.decodeImage(qrBytes)!;
+
+    // Resize the QR code to be smaller (e.g., 1/3 of the wallpaper width)
+    int qrWidth = (wallpaperImage.width / 5).round();
+    img.Image resizedQrImage = img.copyResize(qrImage, width: qrWidth);
+
+    // Calculate the size for the black background (5% larger than the QR code)
+    int backgroundWidth = (resizedQrImage.width * 1.05).round();
+    int backgroundHeight = (resizedQrImage.height * 1.05).round();
+
+    // Create a black background image
+    img.Image background =
+        img.Image(width: backgroundWidth, height: backgroundHeight);
+    img.fill(background,
+        color: img.ColorFloat64.rgb(0, 100, 0)); // Black background
+
+    // // Optionally, you can add rounded corners to the black background
+    // drawRoundedCorners(background, backgroundWidth ~/ 8);
+
+    // Composite the QR code onto the black background
+    int qrCenterX = (backgroundWidth - resizedQrImage.width) ~/ 2;
+    int qrCenterY = (backgroundHeight - resizedQrImage.height) ~/ 2;
+    img.compositeImage(background, resizedQrImage,
+        dstX: qrCenterX, dstY: qrCenterY);
+
+    // Calculate the position to center the black background (with the QR code) on the wallpaper
+    int centerX = (wallpaperImage.width - backgroundWidth) ~/ 2;
+    int centerY = (wallpaperImage.height - backgroundHeight) ~/ 2;
+
+    // Composite the black background (with the QR code) onto the wallpaper
+    img.compositeImage(wallpaperImage, background,
+        dstX: centerX, dstY: centerY);
+
+    // Save the modified wallpaper as a new file
+    File newWallpaperFile = File('${qrFile.parent.path}/new_wallpaper.png')
+      ..writeAsBytesSync(img.encodePng(wallpaperImage));
+
+    // Set the modified wallpaper as the lock screen or home screen wallpaper
+    int location = WallpaperManager
+        .LOCK_SCREEN; // can be set to WallpaperManager.HOME_SCREEN or BOTH_SCREEN
+    bool result = await WallpaperManager.setWallpaperFromFile(
+        newWallpaperFile.path, location);
+
+    // Debugging feedback
     if (result) {
-      debugPrint("mutluyuz");
+      debugPrint("Wallpaper set successfully");
     } else {
-      debugPrint("mutlu degiliz");
+      debugPrint("Failed to set wallpaper");
     }
   }
 
@@ -102,23 +193,26 @@ class _HomePageState extends State<HomePage> {
         context: context,
         barrierDismissible: false,
         builder: (context) {
-          return AlertDialog(
-            title: const Text("Key Not Found"),
-            content: const Text("You need to scan a qr code first!"),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  parseQr(context);
-                },
-                child: const Text("Scan QR"),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text("Cancel"),
-              ),
-            ],
+          return PopScope(
+            canPop: false,
+            child: AlertDialog(
+              title: const Text("Key Not Found"),
+              content: const Text("You need to scan a qr code first!"),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    parseQr(context);
+                  },
+                  child: const Text("Scan QR"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Cancel"),
+                ),
+              ],
+            ),
           );
         },
       );
@@ -268,8 +362,16 @@ class _HomePageState extends State<HomePage> {
                 // Auto Set Wallpaper
                 setState(() {
                   isAutoWallpaperSet = value;
-                 wallpaperSetter();
                 });
+                if (isAutoWallpaperSet) {
+                  setState(() {
+                    debugPrint("Auto Set Wallpaper Activated");
+                    setWallpaper();
+                  });
+                } else {
+                  debugPrint("Auto Set Wallpaper Deactivated");
+                  setOriginalWallapaper();
+                }
               },
             ),
           ],
@@ -295,6 +397,18 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               Text(qrData), // Display the QR code string
+              // Image that shows wallapaper as image if engin is true
+              engin ? Image.memory(wallpaperBytes) : const SizedBox(),
+              ElevatedButton(
+                  onPressed: () async {
+                    debugPrint("Button Pressed");
+                    var bytes = await getCurrentWallpaper();
+                    setState(() {
+                      wallpaperBytes = bytes;
+                      engin = true;
+                    });
+                  },
+                  child: Text("Button"))
             ],
           ),
         );
@@ -346,4 +460,3 @@ class _HomePageState extends State<HomePage> {
     }
   }
 }
-// ????
