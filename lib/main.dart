@@ -1,41 +1,54 @@
 import 'package:flutter/material.dart';
-import 'package:tedu_qrcode/HomePage.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:tedu_qrcode/app.dart';
+import 'package:tedu_qrcode/providers/qr_provider.dart';
+import 'package:tedu_qrcode/providers/theme_provider.dart';
+import 'package:tedu_qrcode/providers/wallpaper_provider.dart';
+import 'package:tedu_qrcode/services/qr_service.dart';
+import 'package:tedu_qrcode/services/storage_service.dart';
+import 'package:tedu_qrcode/services/wallpaper_service.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
-  @override
-  Widget build(BuildContext context) {
-    WidgetsFlutterBinding.ensureInitialized();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          brightness: Brightness.light,
-          primary: const Color.fromARGB(255, 0, 0, 0),
-          secondary: const Color.fromARGB(255, 0, 0, 0),
-          surface: const Color.fromARGB(255, 255, 255, 255),
+  // Keep the screen on while the app is in use
+  await WakelockPlus.enable();
+
+  // --- Instantiate services ---
+  final storageService = StorageService();
+  final qrService = QrService();
+  final wallpaperService = WallpaperService(
+    qrService: qrService,
+    storageService: storageService,
+  );
+
+  // --- Initialise providers that need async setup ---
+  final themeProvider = ThemeProvider(storageService);
+  await themeProvider.init();
+
+  final qrProvider = QrProvider(
+    storageService: storageService,
+    qrService: qrService,
+  );
+  await qrProvider.init();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: qrProvider),
+        ChangeNotifierProvider(
+          create: (_) => WallpaperProvider(wallpaperService),
         ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-            brightness: Brightness.dark,
-            primary: Colors.grey[900],
-            secondary: Colors.grey[800],
-            surface: const Color.fromARGB(255, 255, 252, 252)),
-        useMaterial3: true,
-      ),
-      home: const HomePage(),
-    );
-  }
+      ],
+      child: const App(),
+    ),
+  );
 }
