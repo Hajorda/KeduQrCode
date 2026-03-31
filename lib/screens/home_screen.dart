@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:tedu_qrcode/providers/qr_provider.dart';
+import 'package:tedu_qrcode/providers/theme_provider.dart';
 import 'package:tedu_qrcode/providers/wallpaper_provider.dart';
 import 'package:tedu_qrcode/screens/scan_screen.dart';
 import 'package:tedu_qrcode/widgets/app_drawer.dart';
@@ -9,8 +13,57 @@ import 'package:tedu_qrcode/widgets/loading_overlay.dart';
 import 'package:tedu_qrcode/widgets/qr_display_card.dart';
 
 /// The main screen. Shows the daily QR code or an empty-state prompt.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  DateTime _lastShakeTime = DateTime.now();
+  static const double _shakeThreshold = 15.0; // Minimal G-force threshold
+
+  @override
+  void initState() {
+    super.initState();
+    _initShakeDetector();
+  }
+
+  void _initShakeDetector() {
+    _accelerometerSubscription = accelerometerEventStream().listen((event) {
+      final double gX = event.x.abs();
+      final double gY = event.y.abs();
+      final double gZ = event.z.abs();
+
+      if (gX > _shakeThreshold ||
+          gY > _shakeThreshold ||
+          gZ > _shakeThreshold) {
+        final now = DateTime.now();
+        // Debounce shake events by 1 second
+        if (now.difference(_lastShakeTime).inMilliseconds > 1000) {
+          _lastShakeTime = now;
+          if (mounted) {
+            context.read<ThemeProvider>().randomizeTheme();
+            // Optional visual feedback
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✨ Theme randomized!'),
+                duration: Duration(milliseconds: 1000),
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _accelerometerSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,8 +97,7 @@ class HomeScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(wallpaperProvider.errorMessage!),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.error,
+                        backgroundColor: Theme.of(context).colorScheme.error,
                       ),
                     );
                   }

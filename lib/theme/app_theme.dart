@@ -7,20 +7,20 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Color _seedColor = Color(0xFF1565C0); // Deep blue
+  static const Color _defaultSeedColor = Color(0xFF1565C0); // Deep blue
 
-  static ThemeData get lightTheme => ThemeData(
+  static ThemeData getLightTheme([Color? seedColor]) => ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: _seedColor,
+          seedColor: seedColor ?? _defaultSeedColor,
           brightness: Brightness.light,
         ),
       );
 
-  static ThemeData get darkTheme => ThemeData(
+  static ThemeData getDarkTheme([Color? seedColor]) => ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: _seedColor,
+          seedColor: seedColor ?? _defaultSeedColor,
           brightness: Brightness.dark,
         ),
       );

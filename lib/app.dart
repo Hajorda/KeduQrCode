@@ -15,8 +15,8 @@ class App extends StatelessWidget {
       builder: (context, themeProvider, _) {
         return MaterialApp(
           title: AppConstants.appName,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+          theme: AppTheme.getLightTheme(themeProvider.seedColor),
+          darkTheme: AppTheme.getDarkTheme(themeProvider.seedColor),
           themeMode: themeProvider.themeMode,
           home: const HomeScreen(),
         );

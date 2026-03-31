@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tedu_qrcode/models/qr_code_data.dart';
 import 'package:tedu_qrcode/services/qr_service.dart';
@@ -31,6 +32,7 @@ class QrProvider extends ChangeNotifier {
       final String? key = await _storageService.getKey();
       if (key != null && key.isNotEmpty) {
         _qrCodeData = QrCodeData.forToday(key);
+        await _updateHomeWidget();
       }
     } catch (e) {
       _errorMessage = 'Failed to load stored key';
@@ -61,6 +63,7 @@ class QrProvider extends ChangeNotifier {
       final String key = _qrService.extractKey(rawResult);
       await _storageService.saveKey(key);
       _qrCodeData = QrCodeData.forToday(key);
+      await _updateHomeWidget();
     } catch (e) {
       debugPrint('QrProvider.scanAndSaveKey error: $e');
       _setLoading(false);
@@ -77,6 +80,8 @@ class QrProvider extends ChangeNotifier {
     try {
       await _storageService.deleteKey();
       _qrCodeData = null;
+      await HomeWidget.saveWidgetData<String>('qr_data', null);
+      await HomeWidget.updateWidget(name: 'QrWidgetProvider');
     } catch (e) {
       _errorMessage = 'Failed to delete key';
       debugPrint('QrProvider.deleteKey error: $e');
@@ -88,6 +93,7 @@ class QrProvider extends ChangeNotifier {
   void refreshForToday() {
     if (_qrCodeData != null) {
       _qrCodeData = QrCodeData.forToday(_qrCodeData!.userKey);
+      _updateHomeWidget();
       notifyListeners();
     }
   }
@@ -95,5 +101,13 @@ class QrProvider extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  Future<void> _updateHomeWidget() async {
+    if (_qrCodeData != null) {
+      // Save the latest QR content string to shared storage for native widgets
+      await HomeWidget.saveWidgetData<String>('qr_data', _qrCodeData!.formattedData);
+      await HomeWidget.updateWidget(name: 'QrWidgetProvider');
+    }
   }
 }
