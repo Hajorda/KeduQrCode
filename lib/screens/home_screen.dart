@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -110,9 +111,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           centerTitle: true,
         ),
         drawer: const AppDrawer(),
-        body: qrProvider.hasKey
-            ? _QrBody(qrData: qrProvider.qrCodeData!.formattedData)
-            : const _EmptyState(),
+        body: Stack(
+          children: [
+            qrProvider.hasKey
+                ? _QrBody(qrData: qrProvider.qrCodeData!.formattedData)
+                : const _EmptyState(),
+            Positioned(
+              right: 16,
+              bottom: qrProvider.hasKey ? 80 : 16, // Raise above FAB if exists
+              child: IgnorePointer(
+                child: Lottie.asset(
+                  'assets/lottie/loader_cat.json',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+            ),
+          ],
+        ),
         // FAB for quickly toggling the wallpaper overlay
         floatingActionButton: qrProvider.hasKey
             ? _WallpaperFab(

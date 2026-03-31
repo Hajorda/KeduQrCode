@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tedu_qrcode/constants/app_constants.dart';
 import 'package:tedu_qrcode/providers/theme_provider.dart';
 import 'package:tedu_qrcode/screens/home_screen.dart';
+import 'package:tedu_qrcode/screens/not_found_screen.dart';
 import 'package:tedu_qrcode/theme/app_theme.dart';
 
 /// Root application widget. Reads [ThemeProvider] to switch themes.
@@ -19,6 +20,11 @@ class App extends StatelessWidget {
           darkTheme: AppTheme.getDarkTheme(themeProvider.seedColor),
           themeMode: themeProvider.themeMode,
           home: const HomeScreen(),
+          onUnknownRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (context) => const NotFoundScreen(),
+            );
+          },
         );
       },
     );
