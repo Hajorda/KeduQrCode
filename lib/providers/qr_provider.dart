@@ -106,7 +106,8 @@ class QrProvider extends ChangeNotifier {
   Future<void> _updateHomeWidget() async {
     if (_qrCodeData != null) {
       // Save the latest QR content string to shared storage for native widgets
-      await HomeWidget.saveWidgetData<String>('qr_data', _qrCodeData!.formattedData);
+      await HomeWidget.saveWidgetData<String>(
+          'qr_data', _qrCodeData!.formattedData);
       await HomeWidget.updateWidget(name: 'QrWidgetProvider');
     }
   }
