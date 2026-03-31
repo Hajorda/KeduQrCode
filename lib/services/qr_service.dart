@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:scan/scan.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:tedu_qrcode/constants/app_constants.dart';
 import 'package:tedu_qrcode/models/qr_code_data.dart';
 
@@ -46,7 +46,11 @@ class QrService {
   /// Scans the image at [imagePath] and returns the raw QR string, or null.
   Future<String?> parseQrFromImage(String imagePath) async {
     try {
-      return await Scan.parse(imagePath);
+      final capture = await MobileScannerController().analyzeImage(imagePath);
+      if (capture != null && capture.barcodes.isNotEmpty) {
+        return capture.barcodes.first.rawValue;
+      }
+      return null;
     } catch (e) {
       debugPrint('QrService.parseQrFromImage error: $e');
       return null;
