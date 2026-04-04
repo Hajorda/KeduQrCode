@@ -53,5 +53,6 @@ class NotificationService {
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
   // Can handle background actions here
-  debugPrint('Background Notification clicked: ${notificationResponse.payload}');
+  debugPrint(
+      'Background Notification clicked: ${notificationResponse.payload}');
 }

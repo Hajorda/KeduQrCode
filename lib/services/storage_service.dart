@@ -37,7 +37,7 @@ class StorageService {
   }
 
   // --- Dynamic Boolean Settings ---
-  
+
   Future<bool?> getBool(String key) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
