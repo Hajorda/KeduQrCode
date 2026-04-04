@@ -216,7 +216,8 @@ class _DrawerHeaderState extends State<_DrawerHeader> {
 
   void _showManualIdDialog(BuildContext context) {
     final qrProvider = context.read<QrProvider>();
-    final controller = TextEditingController(text: qrProvider.qrCodeData?.userKey);
+    final controller =
+        TextEditingController(text: qrProvider.qrCodeData?.userKey);
     final formKey = GlobalKey<FormState>();
 
     showDialog(
@@ -234,7 +235,9 @@ class _DrawerHeaderState extends State<_DrawerHeader> {
               hintText: 'Enter your exactly 8-digit ID',
             ),
             validator: (value) {
-              if (value == null || value.length != 8 || int.tryParse(value) == null) {
+              if (value == null ||
+                  value.length != 8 ||
+                  int.tryParse(value) == null) {
                 return 'Please enter exactly 8 digits';
               }
               return null;
@@ -282,8 +285,7 @@ class _DrawerHeaderState extends State<_DrawerHeader> {
             onTap: () => _handleAvatarTap(context),
             child: CircleAvatar(
               radius: 32,
-              backgroundImage:
-                  const AssetImage(AppConstants.logoAsset),
+              backgroundImage: const AssetImage(AppConstants.logoAsset),
               backgroundColor: colors.onPrimaryContainer.withValues(alpha: 0.1),
             ),
           ),
