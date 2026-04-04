@@ -276,10 +276,12 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.qr_code_2_outlined,
-              size: 96,
-              color: colors.outlineVariant,
+            Lottie.asset(
+              'assets/lottie/404_cat.json',
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+              // Fallback color filter or similar? Usually not required.
             ),
             const SizedBox(height: 24),
             Text(

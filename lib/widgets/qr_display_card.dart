@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 /// Displays a QR code inside a styled Material 3 card.
@@ -37,10 +38,22 @@ class QrDisplayCard extends StatelessWidget {
                   width: 240,
                   height: 240,
                   child: Center(
-                    child: Text(
-                      'Error generating QR code',
-                      style: TextStyle(color: colors.error),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Lottie.asset(
+                          'assets/lottie/404_cat.json',
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Error generating QR code',
+                          style: TextStyle(color: colors.error),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
                 ),

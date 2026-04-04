@@ -30,11 +30,37 @@ class QrWidgetProvider : AppWidgetProvider() {
             val bitmap = generateQrCode(qrData)
             views.setImageViewBitmap(R.id.widget_qr_image, bitmap)
         } else {
-            // Null or empty implies we clear it
-            views.setImageViewBitmap(R.id.widget_qr_image, null)
+            val bitmap = generateErrorBitmap("404")
+            views.setImageViewBitmap(R.id.widget_qr_image, bitmap)
         }
 
        appWidgetManager.updateAppWidget(appWidgetId, views)
+    }
+
+    private fun generateErrorBitmap(text: String): Bitmap {
+        val size = 512
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+        val paint = android.graphics.Paint().apply {
+            color = Color.BLACK
+            textSize = 120f
+            textAlign = android.graphics.Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        val paintSub = android.graphics.Paint().apply {
+            color = Color.GRAY
+            textSize = 40f
+            textAlign = android.graphics.Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        
+        val xPos = (canvas.width / 2).toFloat()
+        val yPos = (canvas.height / 2 - (paint.descent() + paint.ascent()) / 2)
+        
+        canvas.drawText(text, xPos, yPos - 30f, paint)
+        canvas.drawText("No key found", xPos, yPos + 60f, paintSub)
+        return bitmap
     }
 
     private fun generateQrCode(text: String): Bitmap? {
