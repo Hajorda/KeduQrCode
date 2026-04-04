@@ -36,6 +36,27 @@ class StorageService {
     }
   }
 
+  // --- Dynamic Boolean Settings ---
+  
+  Future<bool?> getBool(String key) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(key);
+    } catch (e) {
+      debugPrint('StorageService.getBool error: $e');
+      return null;
+    }
+  }
+
+  Future<void> saveBool(String key, bool value) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(key, value);
+    } catch (e) {
+      debugPrint('StorageService.saveBool error: $e');
+    }
+  }
+
   // --- Wallpaper backup path ---
 
   Future<String?> getWallpaperPath() async {

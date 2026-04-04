@@ -5,13 +5,19 @@ import 'package:tedu_qrcode/app.dart';
 import 'package:tedu_qrcode/providers/qr_provider.dart';
 import 'package:tedu_qrcode/providers/theme_provider.dart';
 import 'package:tedu_qrcode/providers/wallpaper_provider.dart';
+import 'package:tedu_qrcode/providers/geofence_provider.dart';
 import 'package:tedu_qrcode/services/qr_service.dart';
 import 'package:tedu_qrcode/services/storage_service.dart';
 import 'package:tedu_qrcode/services/wallpaper_service.dart';
+import 'package:tedu_qrcode/services/notification_service.dart';
+import 'package:tedu_qrcode/services/geofence_service.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await NotificationService.initialize();
+  await GeofenceService.initialize();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -39,11 +45,17 @@ void main() async {
   );
   await qrProvider.init();
 
+  final geofenceProvider = GeofenceProvider(
+    storageService: storageService,
+  );
+  await geofenceProvider.init();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: qrProvider),
+        ChangeNotifierProvider.value(value: geofenceProvider),
         ChangeNotifierProvider(
           create: (_) => WallpaperProvider(wallpaperService),
         ),

@@ -6,6 +6,7 @@ import 'package:tedu_qrcode/constants/app_constants.dart';
 import 'package:tedu_qrcode/providers/qr_provider.dart';
 import 'package:tedu_qrcode/providers/theme_provider.dart';
 import 'package:tedu_qrcode/providers/wallpaper_provider.dart';
+import 'package:tedu_qrcode/providers/geofence_provider.dart';
 import 'package:tedu_qrcode/screens/scan_screen.dart';
 
 /// The app's side drawer with grouped settings, actions, and about section.
@@ -17,6 +18,7 @@ class AppDrawer extends StatelessWidget {
     final themeProvider = context.watch<ThemeProvider>();
     final qrProvider = context.watch<QrProvider>();
     final wallpaperProvider = context.watch<WallpaperProvider>();
+    final geofenceProvider = context.watch<GeofenceProvider>();
 
     return Drawer(
       child: ListView(
@@ -54,6 +56,33 @@ class AppDrawer extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(wallpaperProvider.errorMessage!),
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                        ),
+                      );
+                    }
+                  },
+          ),
+          SwitchListTile(
+            title: const Text('Show QR at Gate'),
+            subtitle: const Text('Notifies you when arriving at university'),
+            secondary: geofenceProvider.isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.location_on_outlined),
+            value: geofenceProvider.isGeofenceEnabled,
+            onChanged: geofenceProvider.isLoading
+                ? null
+                : (value) async {
+                    final success =
+                        await geofenceProvider.setGeofenceEnabled(value);
+                    if (value && !success && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text(
+                              'Permissions required to enable Gate Notification.'),
                           backgroundColor: Theme.of(context).colorScheme.error,
                         ),
                       );

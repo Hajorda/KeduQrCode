@@ -51,6 +51,8 @@ dependencies:
   home_widget: ^0.9.0
   screen_brightness: ^2.1.7
   lottie: ^3.3.2
+  native_geofence: ^1.2.1
+  flutter_local_notifications: ^21.0.0
 
 dev_dependencies:
   flutter_test:
