@@ -27,6 +27,11 @@ class WallpaperService {
   /// Returns empty [Uint8List] if unavailable or permissions are denied.
   Future<Uint8List> getCurrentWallpaper() async {
     try {
+      if (!Platform.isAndroid) {
+        debugPrint('WallpaperService.getCurrentWallpaper: not supported on this platform');
+        return Uint8List(0);
+      }
+
       await _requestStoragePermissions();
 
       final bool granted = await _hasStoragePermission();
@@ -54,6 +59,11 @@ class WallpaperService {
   /// it as the lock screen. Returns true on success.
   Future<bool> setWallpaperWithQr(QrCodeData data) async {
     try {
+      if (!Platform.isAndroid) {
+        debugPrint('WallpaperService.setWallpaperWithQr: strictly Android only');
+        return false;
+      }
+
       final File? qrFile = await _qrService.generateQrImage(data);
       if (qrFile == null) {
         debugPrint('WallpaperService.setWallpaperWithQr: QR generation failed');
@@ -94,6 +104,8 @@ class WallpaperService {
   /// Returns true on success.
   Future<bool> restoreOriginalWallpaper() async {
     try {
+      if (!Platform.isAndroid) return false;
+
       final String? wallpaperPath = await _storageService.getWallpaperPath();
       if (wallpaperPath == null) {
         debugPrint(
@@ -121,18 +133,23 @@ class WallpaperService {
   // ---------------------------------------------------------------------------
 
   Future<void> _requestStoragePermissions() async {
-    final status = await Permission.storage.status;
-    if (!status.isGranted) await Permission.storage.request();
-
-    final manageStatus = await Permission.manageExternalStorage.status;
-    if (!manageStatus.isGranted) {
-      await Permission.manageExternalStorage.request();
-    }
+    await [
+      Permission.storage,
+      Permission.photos,
+      Permission.manageExternalStorage,
+    ].request();
   }
 
   Future<bool> _hasStoragePermission() async {
     final status = await Permission.storage.status;
-    return status.isGranted || status.isLimited;
+    final photosStatus = await Permission.photos.status;
+    final manageStatus = await Permission.manageExternalStorage.status;
+    
+    return status.isGranted || 
+           status.isLimited || 
+           photosStatus.isGranted || 
+           photosStatus.isLimited ||
+           manageStatus.isGranted;
   }
 
   /// Composites the QR image onto [wallpaperBytes] and returns the result.

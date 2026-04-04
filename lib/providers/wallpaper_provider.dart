@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:tedu_qrcode/models/qr_code_data.dart';
 import 'package:tedu_qrcode/services/wallpaper_service.dart';
@@ -29,7 +31,10 @@ class WallpaperProvider extends ChangeNotifier {
     notifyListeners();
 
     if (enabled) {
-      if (data == null) {
+      if (!Platform.isAndroid) {
+        _errorMessage = 'Wallpaper auto-set is currently Android-only.';
+        _isAutoWallpaperSet = false;
+      } else if (data == null) {
         _errorMessage = 'No QR code available to set as wallpaper';
         _isAutoWallpaperSet = false;
       } else {
@@ -40,9 +45,13 @@ class WallpaperProvider extends ChangeNotifier {
         }
       }
     } else {
-      final bool success = await _wallpaperService.restoreOriginalWallpaper();
-      if (!success) {
-        _errorMessage = 'Failed to restore original wallpaper';
+      if (!Platform.isAndroid) {
+        _errorMessage = 'Wallpaper auto-set is currently Android-only.';
+      } else {
+        final bool success = await _wallpaperService.restoreOriginalWallpaper();
+        if (!success) {
+          _errorMessage = 'Failed to restore original wallpaper';
+        }
       }
     }
 
