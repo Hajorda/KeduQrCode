@@ -75,6 +75,24 @@ class QrProvider extends ChangeNotifier {
     return null;
   }
 
+  /// Manually saves a provided key without scanning an image.
+  Future<void> saveKeyManually(String key) async {
+    _setLoading(true);
+    _errorMessage = null;
+
+    try {
+      await _storageService.saveKey(key);
+      _qrCodeData = QrCodeData.forToday(key);
+      await _updateHomeWidget();
+    } catch (e) {
+      debugPrint('QrProvider.saveKeyManually error: $e');
+      _errorMessage = 'An error occurred while saving the key manually';
+    }
+
+    _setLoading(false);
+    notifyListeners();
+  }
+
   /// Deletes the stored key and clears the current QR code.
   Future<void> deleteKey() async {
     try {

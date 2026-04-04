@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tedu_qrcode/constants/app_constants.dart';
@@ -180,9 +182,91 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _DrawerHeader extends StatelessWidget {
+class _DrawerHeader extends StatefulWidget {
   final bool isDarkMode;
   const _DrawerHeader({required this.isDarkMode});
+
+  @override
+  State<_DrawerHeader> createState() => _DrawerHeaderState();
+}
+
+class _DrawerHeaderState extends State<_DrawerHeader> {
+  int _tapCount = 0;
+  Timer? _tapTimer;
+
+  @override
+  void dispose() {
+    _tapTimer?.cancel();
+    super.dispose();
+  }
+
+  void _handleAvatarTap(BuildContext context) {
+    _tapCount++;
+    _tapTimer?.cancel();
+    _tapTimer = Timer(const Duration(seconds: 2), () {
+      _tapCount = 0;
+    });
+
+    if (_tapCount >= 5) {
+      _tapCount = 0;
+      _tapTimer?.cancel();
+      _showManualIdDialog(context);
+    }
+  }
+
+  void _showManualIdDialog(BuildContext context) {
+    final qrProvider = context.read<QrProvider>();
+    final controller = TextEditingController(text: qrProvider.qrCodeData?.userKey);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Manual ID Override'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            maxLength: 8,
+            decoration: const InputDecoration(
+              labelText: '8-Digit ID',
+              hintText: 'Enter your exactly 8-digit ID',
+            ),
+            validator: (value) {
+              if (value == null || value.length != 8 || int.tryParse(value) == null) {
+                return 'Please enter exactly 8 digits';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx);
+                await qrProvider.saveKeyManually(controller.text);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('ID updated manually'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -194,11 +278,14 @@ class _DrawerHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          CircleAvatar(
-            radius: 32,
-            backgroundImage:
-                const AssetImage(AppConstants.logoAsset),
-            backgroundColor: colors.onPrimaryContainer.withValues(alpha: 0.1),
+          GestureDetector(
+            onTap: () => _handleAvatarTap(context),
+            child: CircleAvatar(
+              radius: 32,
+              backgroundImage:
+                  const AssetImage(AppConstants.logoAsset),
+              backgroundColor: colors.onPrimaryContainer.withValues(alpha: 0.1),
+            ),
           ),
           const SizedBox(height: 12),
           Text(
