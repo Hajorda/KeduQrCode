@@ -28,7 +28,8 @@ class WallpaperService {
   Future<Uint8List> getCurrentWallpaper() async {
     try {
       if (!Platform.isAndroid) {
-        debugPrint('WallpaperService.getCurrentWallpaper: not supported on this platform');
+        debugPrint(
+            'WallpaperService.getCurrentWallpaper: not supported on this platform');
         return Uint8List(0);
       }
 
@@ -60,7 +61,8 @@ class WallpaperService {
   Future<bool> setWallpaperWithQr(QrCodeData data) async {
     try {
       if (!Platform.isAndroid) {
-        debugPrint('WallpaperService.setWallpaperWithQr: strictly Android only');
+        debugPrint(
+            'WallpaperService.setWallpaperWithQr: strictly Android only');
         return false;
       }
 
@@ -144,12 +146,12 @@ class WallpaperService {
     final status = await Permission.storage.status;
     final photosStatus = await Permission.photos.status;
     final manageStatus = await Permission.manageExternalStorage.status;
-    
-    return status.isGranted || 
-           status.isLimited || 
-           photosStatus.isGranted || 
-           photosStatus.isLimited ||
-           manageStatus.isGranted;
+
+    return status.isGranted ||
+        status.isLimited ||
+        photosStatus.isGranted ||
+        photosStatus.isLimited ||
+        manageStatus.isGranted;
   }
 
   /// Composites the QR image onto [wallpaperBytes] and returns the result.
