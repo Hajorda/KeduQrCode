@@ -60,6 +60,6 @@ class QrService {
   /// Returns true if [value] matches the expected QR format.
   bool validateQrFormat(String value) => QrCodeData.isValidFormat(value);
 
-  /// Extracts the 8-digit key from a validated QR string.
+  /// Extracts the 8-character key from a validated QR string.
   String extractKey(String rawQrValue) => QrCodeData.extractKey(rawQrValue);
 }

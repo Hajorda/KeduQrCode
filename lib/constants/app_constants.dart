@@ -18,9 +18,9 @@ class AppConstants {
   /// Background box is this multiple larger than the QR (adds padding)
   static const double qrBackgroundPadding = 1.05;
 
-  /// Valid QR data format: 8 digits, comma, YYYY-MM-DD HH:MM:SS
+  /// Valid QR data format: 8 alphanumeric characters, comma, YYYY-MM-DD HH:MM:SS
   static final RegExp qrFormatRegex =
-      RegExp(r'^\d{8},\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$');
+      RegExp(r'^[a-zA-Z0-9]{8},\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$');
 
   /// QR codes are valid until this time each day
   static const String qrExpiryTime = '23:59:00';

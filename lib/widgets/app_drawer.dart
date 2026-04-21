@@ -257,17 +257,17 @@ class _DrawerHeaderState extends State<_DrawerHeader> {
           key: formKey,
           child: TextFormField(
             controller: controller,
-            keyboardType: TextInputType.number,
+            keyboardType: TextInputType.text,
             maxLength: 8,
             decoration: const InputDecoration(
-              labelText: '8-Digit ID',
-              hintText: 'Enter your exactly 8-digit ID',
+              labelText: '8-Character ID',
+              hintText: 'Enter your exactly 8-Character ID',
             ),
             validator: (value) {
               if (value == null ||
                   value.length != 8 ||
-                  int.tryParse(value) == null) {
-                return 'Please enter exactly 8 digits';
+                  !RegExp(r'^[a-zA-Z0-9]{8}$').hasMatch(value)) {
+                return 'Please enter exactly 8 alphanumeric characters';
               }
               return null;
             },

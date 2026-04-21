@@ -3,7 +3,7 @@ import 'package:tedu_qrcode/constants/app_constants.dart';
 
 /// Represents a single day's QR code for gate access.
 class QrCodeData {
-  /// The 8-digit user key extracted from the original scanned QR.
+  /// The 8-character alphanumeric user key extracted from the original scanned QR.
   final String userKey;
 
   /// The date this QR is valid for (expires at 23:59:00).
@@ -15,7 +15,7 @@ class QrCodeData {
   });
 
   /// The formatted string encoded in the QR code.
-  /// Format: "12345678,2024-03-31 23:59:00"
+  /// Format: "75A08773,2024-03-31 23:59:00"
   String get formattedData {
     final String dateStr = DateFormat('yyyy-MM-dd').format(generatedDate);
     return '$userKey,$dateStr ${AppConstants.qrExpiryTime}';
@@ -26,7 +26,7 @@ class QrCodeData {
     return AppConstants.qrFormatRegex.hasMatch(value);
   }
 
-  /// Extracts the 8-digit key from a raw QR string.
+  /// Extracts the 8-character user key from a raw QR string.
   /// Assumes [isValidFormat] has already returned true.
   static String extractKey(String rawQrValue) {
     return rawQrValue.split(',')[0];
