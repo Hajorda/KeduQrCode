@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:tedu_qrcode/app.dart';
@@ -19,6 +20,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('tr_TR');
 
   await NotificationService.initialize();
   await GeofenceService.initialize();
