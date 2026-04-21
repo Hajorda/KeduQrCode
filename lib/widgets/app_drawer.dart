@@ -7,6 +7,7 @@ import 'package:tedu_qrcode/providers/qr_provider.dart';
 import 'package:tedu_qrcode/providers/theme_provider.dart';
 import 'package:tedu_qrcode/providers/wallpaper_provider.dart';
 import 'package:tedu_qrcode/providers/geofence_provider.dart';
+import 'package:tedu_qrcode/screens/menu_screen.dart';
 import 'package:tedu_qrcode/screens/scan_screen.dart';
 
 /// The app's side drawer with grouped settings, actions, and about section.
@@ -100,6 +101,17 @@ class AppDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ScanScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.restaurant_menu_outlined),
+            title: const Text('Günün Menüsü'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MenuScreen()),
               );
             },
           ),

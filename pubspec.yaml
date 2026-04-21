@@ -53,6 +53,8 @@ dependencies:
   lottie: ^3.3.2
   native_geofence: ^1.2.1
   flutter_local_notifications: ^21.0.0
+  http: ^1.6.0
+  html: ^0.15.6
 
 dev_dependencies:
   flutter_test:

@@ -30,4 +30,21 @@ class AppConstants {
 
   // --- App metadata ---
   static const String appName = 'KEDU QR Code';
+
+  // --- Günün Menüsü ---
+  static const String menuUrl =
+      'https://forms.ankara.bel.tr/genclik-sofrasi-menu';
+  static const String prefKeyMenuData = 'menu_data_json';
+  static const String prefKeyMenuDate = 'menu_fetched_date';
+
+  /// Category labels used to classify each menu item
+  static const List<String> menuCategories = [
+    'Çorba',
+    'Ana Yemek',
+    'Garnitür',
+    'Tatlı',
+    'Meyve',
+    'Salata',
+    'Ekmek',
+  ];
 }
