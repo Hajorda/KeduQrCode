@@ -1,0 +1,319 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
+import 'package:provider/provider.dart';
+import 'package:screen_brightness/screen_brightness.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'package:tedu_qrcode/providers/qr_provider.dart';
+import 'package:tedu_qrcode/providers/theme_provider.dart';
+import 'package:tedu_qrcode/providers/wallpaper_provider.dart';
+import 'package:tedu_qrcode/screens/scan_screen.dart';
+import 'package:tedu_qrcode/widgets/app_drawer.dart';
+import 'package:tedu_qrcode/widgets/loading_overlay.dart';
+import 'package:tedu_qrcode/widgets/qr_display_card.dart';
+
+/// The main screen. Shows the daily QR code or an empty-state prompt.
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  DateTime _lastShakeTime = DateTime.now();
+  static const double _shakeThreshold = 15.0; // Minimal G-force threshold
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initShakeDetector();
+    _setMaxBrightness();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _setMaxBrightness();
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      _resetBrightness();
+    }
+  }
+
+  Future<void> _setMaxBrightness() async {
+    try {
+      await ScreenBrightness().setApplicationScreenBrightness(1.0);
+    } catch (e) {
+      debugPrint('Failed to set brightness: $e');
+    }
+  }
+
+  Future<void> _resetBrightness() async {
+    try {
+      await ScreenBrightness().resetApplicationScreenBrightness();
+    } catch (e) {
+      debugPrint('Failed to reset brightness: $e');
+    }
+  }
+
+  void _initShakeDetector() {
+    _accelerometerSubscription = accelerometerEventStream().listen((event) {
+      final double gX = event.x.abs();
+      final double gY = event.y.abs();
+      final double gZ = event.z.abs();
+
+      if (gX > _shakeThreshold ||
+          gY > _shakeThreshold ||
+          gZ > _shakeThreshold) {
+        final now = DateTime.now();
+        // Debounce shake events by 1 second
+        if (now.difference(_lastShakeTime).inMilliseconds > 1000) {
+          _lastShakeTime = now;
+          if (mounted) {
+            context.read<ThemeProvider>().randomizeTheme();
+            // Optional visual feedback
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✨ Theme randomized!'),
+                duration: Duration(milliseconds: 1000),
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _resetBrightness();
+    WidgetsBinding.instance.removeObserver(this);
+    _accelerometerSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final qrProvider = context.watch<QrProvider>();
+    final wallpaperProvider = context.watch<WallpaperProvider>();
+
+    return LoadingOverlay(
+      isLoading: qrProvider.isLoading || wallpaperProvider.isProcessing,
+      message: wallpaperProvider.isProcessing ? 'Setting wallpaper…' : null,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('KEDU QR Code'),
+          centerTitle: true,
+        ),
+        drawer: const AppDrawer(),
+        body: Stack(
+          children: [
+            qrProvider.hasKey
+                ? _QrBody(qrData: qrProvider.qrCodeData!.formattedData)
+                : const _EmptyState(),
+            Positioned(
+              right: 16,
+              bottom: qrProvider.hasKey ? 80 : 16, // Raise above FAB if exists
+              child: IgnorePointer(
+                child: Lottie.asset(
+                  'assets/lottie/loader_cat.json',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+            ),
+          ],
+        ),
+        // FAB for quickly toggling the wallpaper overlay
+        floatingActionButton: qrProvider.hasKey
+            ? _WallpaperFab(
+                isActive: wallpaperProvider.isAutoWallpaperSet,
+                isProcessing: wallpaperProvider.isProcessing,
+                onTap: () async {
+                  await wallpaperProvider.setAutoWallpaper(
+                    enabled: !wallpaperProvider.isAutoWallpaperSet,
+                    data: qrProvider.qrCodeData,
+                  );
+                  if (wallpaperProvider.errorMessage != null &&
+                      context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(wallpaperProvider.errorMessage!),
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                    );
+                  }
+                },
+              )
+            : null,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Wallpaper toggle FAB
+// ---------------------------------------------------------------------------
+
+class _WallpaperFab extends StatelessWidget {
+  final bool isActive;
+  final bool isProcessing;
+  final VoidCallback onTap;
+
+  const _WallpaperFab({
+    required this.isActive,
+    required this.isProcessing,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+
+    return FloatingActionButton.extended(
+      onPressed: isProcessing ? null : onTap,
+      backgroundColor:
+          isActive ? colors.primaryContainer : colors.surfaceContainerHighest,
+      foregroundColor:
+          isActive ? colors.onPrimaryContainer : colors.onSurfaceVariant,
+      icon: isProcessing
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(isActive ? Icons.wallpaper : Icons.wallpaper_outlined),
+      label: Text(isActive ? 'Wallpaper On' : 'Set Wallpaper'),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// QR code body (shown when a key exists)
+// ---------------------------------------------------------------------------
+
+class _QrBody extends StatelessWidget {
+  final String qrData;
+
+  const _QrBody({required this.qrData});
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+    final String today = DateFormat('EEEE, MMMM d').format(DateTime.now());
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Date chip
+            Center(
+              child: Chip(
+                avatar: Icon(Icons.calendar_today_outlined,
+                    size: 16, color: colors.onSecondaryContainer),
+                label: Text(
+                  today,
+                  style: TextStyle(color: colors.onSecondaryContainer),
+                ),
+                backgroundColor: colors.secondaryContainer,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Expiry label
+            Center(
+              child: Text(
+                'Valid until 23:59 today',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // QR Card
+            QrDisplayCard(qrData: qrData),
+
+            const SizedBox(height: 16),
+
+            // Tip
+            Center(
+              child: Text(
+                'Open the drawer to manage settings',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Empty state (shown when no key is stored)
+// ---------------------------------------------------------------------------
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Lottie.asset(
+              'assets/lottie/404_cat.json',
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+              // Fallback color filter or similar? Usually not required.
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Key Found',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Scan your QR code from the KEDU app to get started.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ScanScreen()),
+              ),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Scan QR Code'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
