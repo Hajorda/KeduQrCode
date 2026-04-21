@@ -28,8 +28,8 @@ class MenuWidgetProvider : AppWidgetProvider() {
     ) {
         val prefs = HomeWidgetPlugin.getData(context)
 
-        val date    = prefs.getString("flutter.menu_today_date", null)
-        val summary = prefs.getString("flutter.menu_today_summary", null)
+        val date    = prefs.getString("menu_today_date", null)
+        val summary = prefs.getString("menu_today_summary", null)
 
         val views = RemoteViews(context.packageName, R.layout.menu_widget)
 

@@ -35,8 +35,8 @@
 
     </LinearLayout>
 
-    <!-- Divider -->
-    <View
+    <!-- Divider (View is not supported in RemoteViews; use TextView instead) -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="#33FFFFFF"

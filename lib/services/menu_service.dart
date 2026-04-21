@@ -126,41 +126,89 @@ class MenuService {
       final rows = table.querySelectorAll('tr');
       if (rows.length < 2) continue;
 
-      // First row — try to find date headers
+      // ── Sub-strategy A: column-per-day (date in header row) ──────────────
       final headerCells = rows.first.querySelectorAll('th, td');
-      final dates = headerCells
+      final colDates = headerCells
           .map((c) => _tryParseDate(c.text.trim()))
           .toList();
 
-      if (dates.every((d) => d == null)) continue; // not a menu table
-
-      // Build a column-per-day structure
-      final menusByColumn = <int, List<MenuItem>>{};
-      for (var col = 0; col < dates.length; col++) {
-        menusByColumn[col] = [];
+      if (colDates.any((d) => d != null)) {
+        final menusByColumn = <int, List<MenuItem>>{};
+        for (var col = 0; col < colDates.length; col++) {
+          menusByColumn[col] = [];
+        }
+        for (final row in rows.skip(1)) {
+          final cells = row.querySelectorAll('td');
+          for (var col = 0; col < cells.length && col < colDates.length; col++) {
+            final text = cells[col].text.trim();
+            if (text.isEmpty) continue;
+            menusByColumn[col]!.add(MenuItem(
+              name: text,
+              category: _guessCategory(text),
+            ));
+          }
+        }
+        final result = <DailyMenu>[];
+        for (var col = 0; col < colDates.length; col++) {
+          if (colDates[col] != null && menusByColumn[col]!.isNotEmpty) {
+            result.add(DailyMenu(date: colDates[col]!, items: menusByColumn[col]!));
+          }
+        }
+        if (result.isNotEmpty) {
+          return result;
+        }
       }
 
+      // ── Sub-strategy B: row-per-day (date in first column) ───────────────
+      // Header row contains category names, data rows: date | dish | dish ...
+      final catHeaders = headerCells
+          .skip(1)
+          .map((c) => c.text.trim())
+          .toList();
+
+      final rowResult = <DailyMenu>[];
       for (final row in rows.skip(1)) {
         final cells = row.querySelectorAll('td');
-        for (var col = 0; col < cells.length && col < dates.length; col++) {
-          final text = cells[col].text.trim();
+        if (cells.isEmpty) continue;
+        final date = _tryParseDate(cells.first.text.trim());
+        if (date == null) continue;
+
+        final items = <MenuItem>[];
+        for (var i = 1; i < cells.length; i++) {
+          final text = cells[i].text.trim();
           if (text.isEmpty) continue;
-          menusByColumn[col]!.add(MenuItem(
+          // Prefer the column header category; fall back to heuristic
+          final colHeader = i - 1 < catHeaders.length ? catHeaders[i - 1] : '';
+          items.add(MenuItem(
             name: text,
-            category: _guessCategory(text),
+            category: _categoryFromHeader(colHeader, text),
           ));
         }
-      }
-
-      final result = <DailyMenu>[];
-      for (var col = 0; col < dates.length; col++) {
-        if (dates[col] != null && menusByColumn[col]!.isNotEmpty) {
-          result.add(DailyMenu(date: dates[col]!, items: menusByColumn[col]!));
+        if (items.isNotEmpty) {
+          rowResult.add(DailyMenu(date: date, items: items));
         }
       }
-      if (result.isNotEmpty) return result;
+      if (rowResult.isNotEmpty) {
+        debugPrint('MenuService: row-per-day table → ${rowResult.length} days');
+        return rowResult;
+      }
     }
     return [];
+  }
+
+  /// Maps a column header (e.g. "Çorbalar", "Ana Yemek") to a category string,
+  /// falling back to the heuristic guesser when the header is unrecognised.
+  String _categoryFromHeader(String header, String dishName) {
+    final h = header.toLowerCase();
+    if (h.contains('çorba')) { return 'Çorba'; }
+    if (h.contains('salata')) { return 'Salata'; }
+    if (h.contains('tatlı') || h.contains('tatli')) { return 'Tatlı'; }
+    if (h.contains('meyve')) { return 'Meyve'; }
+    if (h.contains('ekmek')) { return 'Ekmek'; }
+    if (h.contains('garnitür') || h.contains('garnitur') ||
+        h.contains('yrd') || h.contains('yardımcı')) { return 'Garnitür'; }
+    if (h.contains('ana')) { return 'Ana Yemek'; }
+    return _guessCategory(dishName);
   }
 
   // ── Strategy 2: cards / sections ─────────────────────────────────────────
@@ -196,6 +244,11 @@ class MenuService {
   // ── Strategy 3: flat list ─────────────────────────────────────────────────
 
   List<DailyMenu> _parseFromList(dom.Document doc) {
+    // Strip noise nodes before reading body text so JS/CSS is not treated as food
+    for (final el in doc.querySelectorAll('script, style, nav, footer, header')) {
+      el.remove();
+    }
+
     final allText = doc.body?.text ?? '';
     final lines = allText
         .split(RegExp(r'[\n\r]+'))
@@ -215,7 +268,10 @@ class MenuService {
         }
         currentDate = date;
         currentItems = [];
-      } else if (currentDate != null && line.length > 2) {
+      } else if (currentDate != null &&
+          line.length > 2 &&
+          line.length < 80 &&
+          !_looksLikeCode(line)) {
         currentItems.add(MenuItem(name: line, category: _guessCategory(line)));
       }
     }
@@ -223,6 +279,24 @@ class MenuService {
       result.add(DailyMenu(date: currentDate, items: currentItems));
     }
     return result;
+  }
+
+  /// Returns true for lines that look like JavaScript / CSS rather than food.
+  static bool _looksLikeCode(String line) {
+    return line.contains('{') ||
+        line.contains('}') ||
+        line.contains('function') ||
+        line.contains('var ') ||
+        line.contains('let ') ||
+        line.contains('const ') ||
+        line.contains("\$('#") ||
+        line.contains('=>') ||
+        line.contains('.attr(') ||
+        line.contains('.val()') ||
+        line.contains('.data(') ||
+        line.startsWith('//') ||
+        line.startsWith('/*') ||
+        line.startsWith('e.prevent');
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
